@@ -24,17 +24,32 @@ namespace Arithmetic
     {
         static void Main(string[] args)
         {
-            var str = "sin15x log-6x *-5 (cos-12x+ 7)^(sin8/cos8x) + 6"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
+            Console.WriteLine("Пример ввода:");
+            var str = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2.24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
             double dbX = -0.395;
+            Console.WriteLine($"{str}");
+
             try
             {
-                Console.WriteLine($"x = {dbX}\n{str} = {Calc.Start(str, dbX)}");
+                Console.WriteLine($"x = {dbX}\n{str} = {(new Calc(str, dbX)).Result}");
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
 
+            Console.WriteLine("\nВведите выражение:");
+            str = Console.ReadLine();
+            try
+            {
+                Console.Write("Введите x: ");
+                dbX = Double.Parse(Console.ReadLine());
+                Console.WriteLine($"x = {dbX}\n{str} = {(new Calc(str, dbX)).Result}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
             Console.ReadLine();
         }
@@ -48,33 +63,54 @@ namespace Arithmetic
         private static readonly char CharVariable = 'x';
         private enum FuncEnum { Nun, Sin, Cos, Log, Min };
 
+        private int _braketsNumber;
 
-        public static double Start(string startValue, double xValue)
+        public double Result;
+
+
+        public Calc(string startValue, double xValue)
         {
+            _braketsNumber = 0;
             var node = new UserList<char>(startValue.Where(ch => ch != ' ')).First;
-            return StrResult(default(char), ref node, out char value).SetIntValue(xValue);
+            Result = StrResult(default(char), ref node, out char value, out int preor).SetIntValue(xValue);
+            if(_braketsNumber != 0) throw new Exception("Не закрыто " + _braketsNumber + " cкобок");
         }
 
-        private static IOperand StrResult(char preOperand, ref IValuesAndLink<char> sValue, out char lastOperand)
+        private IOperand StrResult(char preOperand, ref IValuesAndLink<char> sValue, out char lastOperand, out int lastOperandPreor)
         {
+            if (sValue == null)
+            {
+                lastOperand = default(char);
+                lastOperandPreor = -1;
+                return null;
+            }
             var a = FindValue(ref sValue);
             var operand = FindOperand(ref sValue, out int operandPreor);
 
             if (operand == CloseBracket || preOperand != default(char) && operandPreor < 2)
             {
                 lastOperand = operand;
+                lastOperandPreor = operandPreor;
                 return a;
             }
 
             do
             {
+                if (operandPreor == 0)
+                {
+                    var m = StrResult(operand, ref sValue, out lastOperand, out lastOperandPreor);
+                    if (m == null && operand == default(char)) return a;
+                    var p = DuoOperand(a, m, operand);
+                    return p;
+                }
+
                 var b = FindValue(ref sValue);
                 var nextOperand = FindOperand(ref sValue, out int nextOperandPreor);
 
 
                 if (operandPreor >= nextOperandPreor)
                 {
-
+                    if(b == null && operand == default(char)) break;
                     a = DuoOperand(a, b, operand);
                     operand = nextOperand;
                 }
@@ -82,17 +118,22 @@ namespace Arithmetic
                 {
                     if (operandPreor == 1)
                     {
-                        a = DuoOperand(a, DuoOperand(b, StrResult(operand, ref sValue, out char tempOperand), nextOperand), operand);
+                        a = DuoOperand(a,
+                            DuoOperand(b, StrResult(operand, ref sValue, out char tempOperand, out operandPreor),
+                                nextOperand), operand);
                         operand = tempOperand;
                     }
-                    else a = DuoOperand(a, StrResult(default(char), ref sValue, out nextOperand), operand);
+                    else
+                    {
+                    }
                 }
             } while (operand != CloseBracket && sValue != null);
             lastOperand = default(char);
+            lastOperandPreor = -1;
             return a;
         }
 
-        private static char FindOperand(ref IValuesAndLink<char> charter, out int intPreor)
+        private char FindOperand(ref IValuesAndLink<char> charter, out int intPreor)
         {
             if (charter == null)
             {
@@ -103,21 +144,27 @@ namespace Arithmetic
             {
                 case '+':
                 case '-':
+                    if(charter.Next == null)throw new Exception("Отсутствует слагаемое в конце");
                     charter = charter.Next;
                     intPreor = 0;
                     return charter.Previous.Value;
                 case '*':
                 case '/':
+                    if (charter.Next == null) throw new Exception("Отсутствует множитель в конце");
+
                     charter = charter.Next;
                     intPreor = 1;
                     return charter.Previous.Value;
                 case '^':
+                    if (charter.Next == null) throw new Exception("Отсутствует показатель в конце");
                     charter = charter.Next;
                     intPreor = 2;
                     return charter.Previous.Value;
                 case ')':
+                    if (_braketsNumber == 0) throw new Exception("Лишня скобка");
+                    _braketsNumber--;
                     var temp = charter.Value;
-                    if (charter.Next != null) charter = charter.Next;
+                    charter = charter.Next;
                     intPreor = -1;
                     return temp;
                 default:
@@ -125,8 +172,13 @@ namespace Arithmetic
                     return '*';
             }
         }
-        private static IOperand FindValue(ref IValuesAndLink<char> charter)
+        private IOperand FindValue(ref IValuesAndLink<char> charter)
         {
+            if (charter == null)
+            {
+                return null;
+            }
+            //if(charter == null) throw new Exception("Закрывайте скобки");
             var blUno1 = false;
             var blUno2 = false;
             IOperand aValue;
@@ -140,7 +192,8 @@ namespace Arithmetic
             if (charter.Value == OpenBracket)
             {
                 charter = charter.Next;
-                aValue = StrResult(default(char), ref charter, out char tempOperand);
+                _braketsNumber++;
+                aValue = StrResult(default(char), ref charter, out char tempOper, out int tempPreor);
             }
             else
             {
@@ -163,7 +216,7 @@ namespace Arithmetic
                 }
                 else
                 {
-                    if (strNumbs == "") throw new Exception("Некорректная запись");
+                    if (strNumbs == "") throw new Exception("не указан аргумент функции");
                     aValue = new Const(strNumbs == "" ? 1 : Double.Parse(strNumbs.Replace('.', ',')));
                 }
                 if (blUno2) aValue = UnoOperand(aValue, FuncEnum.Min);
@@ -173,7 +226,7 @@ namespace Arithmetic
             return aValue;
         }
 
-        private static void FindFunc(ref IValuesAndLink<char> nodeValue, out FuncEnum funcValue)
+        private void FindFunc(ref IValuesAndLink<char> nodeValue, out FuncEnum funcValue)
         {
             funcValue = FuncEnum.Nun;
             var strFunc = "";
@@ -202,14 +255,14 @@ namespace Arithmetic
                     }
                 default:
                     {
-                        if (strFunc.Length > 0) throw new Exception("Некорректная запись");
+                        if (strFunc.Length > 0) throw new Exception("Введён неверный оператор");
                         break;
                     }
             }
         }
 
 
-        static IOperand DuoOperand(IOperand a, IOperand b, char operand)
+        IOperand DuoOperand(IOperand a, IOperand b, char operand)
         {
             IOperand value;
             switch (operand)
@@ -235,7 +288,7 @@ namespace Arithmetic
             return value;
         }
 
-        static IOperand UnoOperand(IOperand a, FuncEnum operand)
+        IOperand UnoOperand(IOperand a, FuncEnum operand)
         {
             IOperand value;
             switch (operand)
@@ -261,7 +314,7 @@ namespace Arithmetic
             return value;
         }
 
-        static bool NumbersPredicate(char ch) => (ch >= '0') && (ch <= '9') || (ch == '.');
+        bool NumbersPredicate(char ch) => (ch >= '0') && (ch <= '9') || (ch == '.');
     }
 
     interface IOperand
