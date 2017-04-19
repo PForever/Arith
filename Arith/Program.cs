@@ -34,45 +34,48 @@ namespace Arithmetic
         {
             Console.WriteLine("Пример ввода:");
             var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2,24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
-            //double dbX = -0.395;
-            //Console.WriteLine($"{str1}");
+            double dbX = -0.395;
+            Console.WriteLine($"{str1}");
 
-            //try
-            //{
-            //    Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
-            //}
-            //catch (Exception e)
-            //{
-            //    Console.WriteLine(e.Message);
-            //}
+            try
+            {
+                Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            Console.ReadLine();
+
             //Console.WriteLine();
 
             //Test.Test1(new UserList<int>(new int[10]));
-            do
-            {
-                Console.Clear();
-                try
-                {
-                    Console.WriteLine($"Пример ввода:\n{str1}");
-                    Console.WriteLine("Введите выражение:");
 
-                    var str = Console.ReadLine().Replace(',', '.');
-                    Console.Write("Введите x = ");
-                    if(!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) {throw new FormatException("x должен быть числом.");}
-                    Console.WriteLine($"{str} = {(new Calc(str, dbX)).Result}");
+            //do
+            //{
+            //    Console.Clear();
+            //    try
+            //    {
+            //        Console.WriteLine($"Пример ввода:\n{str1}");
+            //        Console.WriteLine("Введите выражение:");
 
-                }
-                catch (Exception e)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e.Message);
-                    Console.ResetColor();
-                }
-                finally
-                {
-                    Console.WriteLine("Для выхода нажмите Esc/любую клавишу для продолжения.");
-                }
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            //        var str = Console.ReadLine().Replace(',', '.');
+            //        Console.Write("Введите x = ");
+            //        if(!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) {throw new FormatException("x должен быть числом.");}
+            //        Console.WriteLine($"{str} = {(new Calc(str, dbX)).Result}");
+
+            //    }
+            //    catch (Exception e)
+            //    {
+            //        Console.ForegroundColor = ConsoleColor.Red;
+            //        Console.WriteLine(e.Message);
+            //        Console.ResetColor();
+            //    }
+            //    finally
+            //    {
+            //        Console.WriteLine("Для выхода нажмите Esc/любую клавишу для продолжения.");
+            //    }
+            //} while (Console.ReadKey().Key != ConsoleKey.Escape);
         }
     }
 
@@ -336,6 +339,7 @@ namespace Arithmetic
     interface IOperand
     {
         double SetIntValue(double value);
+        string Print { get; }
     }
 
     class Const : IOperand
@@ -349,6 +353,8 @@ namespace Arithmetic
 
 
         public double SetIntValue(double value) => _doubValue;
+
+        public string Print => _doubValue.ToString();
     }
 
     class Variable : IOperand
@@ -360,6 +366,8 @@ namespace Arithmetic
             _doubValue = value;
             return _doubValue;
         }
+
+        public string Print => "x";
     }
 
     abstract class UnoMethod : IOperand
@@ -373,12 +381,15 @@ namespace Arithmetic
         }
 
         protected abstract double Operation(double a);
-
+        protected abstract string PrintOperation(string a);
         public double SetIntValue(double value)
         {
             _resultValue = Operation(_value1.SetIntValue(value));
             return _resultValue;
         }
+
+
+        public string Print => PrintOperation(_value1.Print);
     }
 
     class Sin : UnoMethod
@@ -388,6 +399,7 @@ namespace Arithmetic
         }
 
         protected override double Operation(double a) => Math.Sin(a);
+        protected override string PrintOperation(string a) => "sin(" + a + ")";
     }
 
     class Cos : UnoMethod
@@ -397,6 +409,7 @@ namespace Arithmetic
         }
 
         protected override double Operation(double a) => Math.Cos(a);
+        protected override string PrintOperation(string a) => "cos(" + a + ")";
     }
 
     class Ln : UnoMethod
@@ -406,6 +419,7 @@ namespace Arithmetic
         }
 
         protected override double Operation(double a) => Math.Log(a);
+        protected override string PrintOperation(string a) => "log(" + a + ")";
     }
 
     class UnoMin : UnoMethod
@@ -415,6 +429,7 @@ namespace Arithmetic
         }
 
         protected override double Operation(double a) => -a;
+        protected override string PrintOperation(string a) => "-" + a;
     }
 
     abstract class Method : IOperand
@@ -430,12 +445,15 @@ namespace Arithmetic
         }
 
         public abstract double Operation(double a, double b);
+        public abstract string PrintOperation(string a, string b);
 
         public double SetIntValue(double value)
         {
             _resultValue = Operation(_value1.SetIntValue(value), _value2.SetIntValue(value));
             return _resultValue;
         }
+
+        public string Print => PrintOperation(_value1.Print, _value2.Print);
     }
 
     class Min : Method
@@ -445,6 +463,7 @@ namespace Arithmetic
         }
 
         public override double Operation(double a, double b) => (a - b);
+        public override string PrintOperation(string a, string b) => a + " - " + b; // TODO a - (b)
     }
 
     class Add : Method
@@ -454,6 +473,7 @@ namespace Arithmetic
         }
 
         public override double Operation(double a, double b) => a + b;
+        public override string PrintOperation(string a, string b) => a + " + " + b;
     }
 
     class Umn : Method
@@ -463,6 +483,7 @@ namespace Arithmetic
         }
 
         public override double Operation(double a, double b) => a * b;
+        public override string PrintOperation(string a, string b) => "(" + a + ") * (" + b + ")";
     }
 
     class Del : Method
@@ -476,7 +497,9 @@ namespace Arithmetic
             if (Math.Abs(b) < 0.000000000000000000000001) throw new Exception("не делите на ноль");
             return a / b;
         }
+        public override string PrintOperation(string a, string b) => "(" + a + ") / (" + b + ")";
     }
+
     class Up : Method
     {
         public Up(IOperand a, IOperand b) : base(a, b)
@@ -487,6 +510,8 @@ namespace Arithmetic
         {
             return Math.Pow(a, b);
         }
+        public override string PrintOperation(string a, string b) => "(" + a + ") ^ (" + b + ")";
+
     }
     interface IValuesAndLink<T>
     {
