@@ -2,11 +2,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Arithmetic
 {
+    //это если возникнет желание потестить работу листа
     class Test
     {
         public static void Test1(UserList<int> ar)
@@ -54,13 +53,13 @@ namespace Arithmetic
                 Console.Clear();
                 try
                 {
-                    Console.WriteLine($"Пример ввода:\n{str1}");
+                    Console.WriteLine("Пример ввода:\n{0}", str1);
                     Console.WriteLine("Введите выражение:");
 
                     var str = Console.ReadLine().Replace(',', '.');
                     Console.Write("Введите x = ");
                     if (!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) { throw new FormatException("x должен быть числом."); }
-                    Console.WriteLine($"{str} = {(new Calc(str, dbX)).Result}");
+                    Console.WriteLine("{0} = {1}", str, new Calc(str, dbX).Result);
 
                 }
                 catch (Exception e)
@@ -76,6 +75,7 @@ namespace Arithmetic
             } while (Console.ReadKey().Key != ConsoleKey.Escape);
         }
     }
+    #region Calculator
 
     class Calc
     {
@@ -94,11 +94,18 @@ namespace Arithmetic
         {
             _braketsNumber = 0;
             var node = new UserList<char>(startValue.Where(ch => ch != ' ')).First;
-            Result = StrResult(default(char), ref node, out char value, out int preor).SetIntValue(xValue);
-            if(_braketsNumber != 0) throw new Exception("Не закрыто " + _braketsNumber + " cкобок");
+            Result = StrResult(false, ref node, out char value, out int preor).SetIntValue(xValue);
+            if (_braketsNumber != 0) throw new Exception("Не закрыто " + _braketsNumber + " cкобок");
         }
-
-        private IOperand StrResult(char preOperand, ref IValuesAndLink<char> sValue, out char lastOperand, out int lastOperandPreor)
+        /// <summary>
+        /// вычисляет результат операций внутри скобки
+        /// </summary>
+        /// <param name="preOperand">наличие знака перед последовательностью опарандов высшего порядка</param>
+        /// <param name="sValue">каретка</param>
+        /// <param name="lastOperand">тип операнда после скобки</param>
+        /// <param name="lastOperandPreor">и его преоритет</param>
+        /// <returns></returns>
+        private IOperand StrResult(bool preOperand, ref IValuesAndLink<char> sValue, out char lastOperand, out int lastOperandPreor)
         {
             if (sValue == null)
             {
@@ -106,10 +113,12 @@ namespace Arithmetic
                 lastOperandPreor = -1;
                 return null;
             }
+            //определяем первое число. Тут же вычисляются все унарные опреаторы.
             var a = FindValue(ref sValue);
+            //знак
             var operand = FindOperand(ref sValue, out int operandPreor);
-
-            if (operand == CloseBracket || preOperand != default(char) && operandPreor < 2)
+            //если скобка закрывается или последовательность операндов высшего приоритета завершена, то возвращаемся по дереву
+            if (operand == CloseBracket || preOperand && operandPreor < 2)
             {
                 lastOperand = operand;
                 lastOperandPreor = operandPreor;
@@ -118,9 +127,10 @@ namespace Arithmetic
 
             do
             {
+                //сложение вычисляем в самом конце.
                 if (operandPreor == 0)
                 {
-                    var m = StrResult(operand, ref sValue, out lastOperand, out lastOperandPreor);
+                    var m = StrResult(true, ref sValue, out lastOperand, out lastOperandPreor);
                     if (m == null && operand == default(char)) return a;
                     var p = DuoOperand(a, m, operand);
                     return p;
@@ -129,27 +139,28 @@ namespace Arithmetic
                 var b = FindValue(ref sValue);
                 var nextOperand = FindOperand(ref sValue, out int nextOperandPreor);
 
-
+                //сравниваем приоритеты
                 if (operandPreor >= nextOperandPreor)
                 {
-                    if(b == null && operand == default(char)) break;
+                    if (b == null && operand == default(char)) break;
                     a = DuoOperand(a, b, operand);
                     operand = nextOperand;
                     operandPreor = nextOperandPreor;
                 }
                 else
                 {
-                        a = DuoOperand(a,
-                            DuoOperand(b, StrResult(operand, ref sValue, out char tempOperand, out operandPreor),
-                                nextOperand), operand);
-                        operand = tempOperand;
+                    //если приоритет меньше, то перед нами последовательность операндов высшего приоритетов (возведение в степень)
+                    a = DuoOperand(a,
+                        DuoOperand(b, StrResult(true, ref sValue, out char tempOperand, out operandPreor),
+                            nextOperand), operand);
+                    operand = tempOperand;
                 }
             } while (operand != CloseBracket && sValue != null);
             lastOperand = default(char);
             lastOperandPreor = -1;
             return a;
         }
-
+        //тут определяем знак и его приоритет
         private char FindOperand(ref IValuesAndLink<char> charter, out int intPreor)
         {
             if (charter == null)
@@ -161,20 +172,17 @@ namespace Arithmetic
             {
                 case '+':
                 case '-':
-                    if(charter.Next == null)throw new Exception("Отсутствует слагаемое в конце");
-                    charter = charter.Next;
+                    charter = charter.Next ?? throw new Exception("Отсутствует слагаемое в конце");
                     intPreor = 0;
                     return charter.Previous.Value;
                 case '*':
                 case '/':
-                    if (charter.Next == null) throw new Exception("Отсутствует множитель в конце");
 
-                    charter = charter.Next;
+                    charter = charter.Next ?? throw new Exception("Отсутствует множитель в конце");
                     intPreor = 1;
                     return charter.Previous.Value;
                 case '^':
-                    if (charter.Next == null) throw new Exception("Отсутствует показатель в конце");
-                    charter = charter.Next;
+                    charter = charter.Next ?? throw new Exception("Отсутствует показатель в конце");
                     intPreor = 2;
                     return charter.Previous.Value;
                 case ')':
@@ -189,6 +197,7 @@ namespace Arithmetic
                     return '*';
             }
         }
+        //определение значения, вычисление унарных минусов как перед, так и внутри функции, всё здесь
         private IOperand FindValue(ref IValuesAndLink<char> charter)
         {
             if (charter == null)
@@ -200,49 +209,57 @@ namespace Arithmetic
             var blUno2 = false;
             IOperand aValue;
             var strNumbs = "";
+            //унарный минус перед функцией
             if (charter.Value == UnoMinus)
             {
                 blUno1 = true;
                 charter = charter.Next;
             }
+            //определяем наличие функции
             FindFunc(ref charter, out FuncEnum funcValue);
             if (charter.Value == OpenBracket)
             {
+                //рекурсия для скобок
                 charter = charter.Next;
                 _braketsNumber++;
-                aValue = StrResult(default(char), ref charter, out char tempOper, out int tempPreor);
+                aValue = StrResult(false, ref charter, out char tempOper, out int tempPreor);
             }
             else
             {
-
+                //унарный минус внутри функции
                 if (charter.Value == UnoMinus)
                 {
                     blUno2 = true;
                     charter = charter.Next;
                 }
-
+                //само число
                 while (charter != null && NumbersPredicate(charter.Value))
                 {
                     strNumbs += charter.Value;
                     charter = charter.Next;
                 }
+                //x с числом
                 if (charter?.Value == CharVariable)
                 {
                     aValue = strNumbs == "" ? (IOperand)new Variable() : new Umn(new Const(Double.Parse(strNumbs.Replace('.', ','))), new Variable());
                     charter = charter.Next;
                 }
+                //x без числа
                 else
                 {
                     if (strNumbs == "") throw new Exception("не указан аргумент функции");
                     aValue = new Const(strNumbs == "" ? 1 : Double.Parse(strNumbs.Replace('.', ',')));
                 }
+                //вычисление внутреннего унарного минуса
                 if (blUno2) aValue = UnoOperand(aValue, FuncEnum.Min);
             }
+            //подсчёт функции
             aValue = UnoOperand(aValue, funcValue);
+            //подсчёт унарного минуса перед функцией
             if (blUno1) aValue = UnoOperand(aValue, FuncEnum.Min);
             return aValue;
         }
-
+        //определение функции
         private void FindFunc(ref IValuesAndLink<char> nodeValue, out FuncEnum funcValue)
         {
             funcValue = FuncEnum.Nun;
@@ -256,29 +273,29 @@ namespace Arithmetic
             switch (strFunc)
             {
                 case "sin":
-                    {
-                        funcValue = FuncEnum.Sin;
-                        break;
-                    }
+                {
+                    funcValue = FuncEnum.Sin;
+                    break;
+                }
                 case "cos":
-                    {
-                        funcValue = FuncEnum.Cos;
-                        break;
-                    }
+                {
+                    funcValue = FuncEnum.Cos;
+                    break;
+                }
                 case "log":
-                    {
-                        funcValue = FuncEnum.Log;
-                        break;
-                    }
+                {
+                    funcValue = FuncEnum.Log;
+                    break;
+                }
                 default:
-                    {
-                        if (strFunc.Length > 0) throw new Exception("Введён неверный оператор");
-                        break;
-                    }
+                {
+                    if (strFunc.Length > 0) throw new Exception("Введён неверный оператор");
+                    break;
+                }
             }
         }
 
-
+        //бинарные операторы
         IOperand DuoOperand(IOperand a, IOperand b, char operand)
         {
             IOperand value;
@@ -304,7 +321,7 @@ namespace Arithmetic
             }
             return value;
         }
-
+        //унарные операторы
         IOperand UnoOperand(IOperand a, FuncEnum operand)
         {
             IOperand value;
@@ -334,11 +351,12 @@ namespace Arithmetic
         bool NumbersPredicate(char ch) => (ch >= '0') && (ch <= '9') || (ch == '.');
     }
 
+    //общий интерфейс для результатов вычислений операндов, констант и переменных
     interface IOperand
     {
         double SetIntValue(double value);
     }
-
+    //класс констант
     class Const : IOperand
     {
         private readonly double _doubValue;
@@ -348,10 +366,10 @@ namespace Arithmetic
             _doubValue = value;
         }
 
-
         public double SetIntValue(double value) => _doubValue;
     }
 
+    //класс переменных
     class Variable : IOperand
     {
         private double _doubValue;
@@ -362,7 +380,7 @@ namespace Arithmetic
             return _doubValue;
         }
     }
-
+    //прародитель для классов унарных методов
     abstract class UnoMethod : IOperand
     {
         private readonly IOperand _value1;
@@ -418,6 +436,7 @@ namespace Arithmetic
         protected override double Operation(double a) => -a;
     }
 
+    //прародитель для классов бинарных методов
     abstract class Method : IOperand
     {
         private readonly IOperand _value1;
@@ -489,6 +508,11 @@ namespace Arithmetic
             return Math.Pow(a, b);
         }
     }
+
+    #endregion
+    #region LinkedList
+
+    //открытй интерфейс для управления кареткой
     interface IValuesAndLink<T>
     {
         IValuesAndLink<T> Next { get; }
@@ -496,14 +520,16 @@ namespace Arithmetic
         T Value { get; set; }
         UserList<T> List { get; }
     }
+    //класс листа
     class UserList<T> : ICollection<T>
     {
+        //закрытый класс для управления условно открытыми параметрами каретки внутри класса листа.
         private class ValuesAndLink : IValuesAndLink<T>
         {
             public UserList<T> List { get; private set; }
             internal int _index;
             internal T _value;
-            internal bool _enable;
+            internal bool _enable; //содержит информацию об активированности члена
             internal int _nextIndex;
             internal int _previousIndex;
 
@@ -545,8 +571,8 @@ namespace Arithmetic
 
             public ValuesAndLink Next
             {
-                get {return List._arr[_nextIndex]; }
-                internal set { List._arr[_nextIndex] = value; } 
+                get { return List._arr[_nextIndex]; }
+                internal set { List._arr[_nextIndex] = value; }
             }
 
             public ValuesAndLink Previous
@@ -554,22 +580,22 @@ namespace Arithmetic
                 get { return List._arr[_previousIndex]; }
                 internal set { List._arr[_previousIndex] = value; }
             }
-
+            //то, что доступно вне класса (явная реализация методов интерфейса)
             IValuesAndLink<T> IValuesAndLink<T>.Next => List._arr[_nextIndex]._enable == false ? null : List._arr[_nextIndex];
             IValuesAndLink<T> IValuesAndLink<T>.Previous => List._arr[_previousIndex]._enable == false ? null : List._arr[_previousIndex];
-
         }
-
+        //далее параметры самого листа
         private ValuesAndLink[] _arr;
         private int _firstIndex;
         private int _lastIndex;
         private int _capasity;
         private int _count;
 
-
+        //реальный размер массива
         public int Capasity
         {
-            get {return _capasity; } 
+            get { return _capasity; }
+            //доступен к ручному изменению при необходимости (когда нужно уменьшить занимаемый объём памяти)
             set
             {
                 if (value <= Count) throw new IndexOutOfRangeException();
@@ -580,7 +606,7 @@ namespace Arithmetic
                     var maxNumber = Capasity;
                     _arr = new ValuesAndLink[value];
 
-                    Array.Copy(temp, _arr, maxNumber); // TODO >, <
+                    Array.Copy(temp, _arr, maxNumber);
                     _arr[_firstIndex].Previous._nextIndex = maxNumber;
                     _arr[_firstIndex]._previousIndex = value - 1;
                     _capasity = value;
@@ -611,6 +637,7 @@ namespace Arithmetic
                 }
             }
         }
+        //число активированных членов
         public int Count
         {
             get { return _count; }
@@ -622,9 +649,10 @@ namespace Arithmetic
                 _count = value;
             }
         }
-
+        //эт для реализации ай колекшн. Честно, лень смотреть, что с этим нужно делать)
         public bool IsReadOnly { get; }
 
+        //возвращаем интерфейсную каретку
         public IValuesAndLink<T> First => _arr[_firstIndex];
         public IValuesAndLink<T> Last => _arr[_lastIndex];
 
@@ -647,11 +675,13 @@ namespace Arithmetic
                 _arr[index] = new ValuesAndLink(index, this);
         }
 
+        //далее исполнены все стандартные методы, необходимые для выполнения идеологии листа
+
         public void AddAfter(IValuesAndLink<T> elementNode, T elenet)
         {
             Count++;
             var newIndex = _arr[_lastIndex]._nextIndex;
-            var node = (ValuesAndLink) elementNode;
+            var node = (ValuesAndLink)elementNode;
 
             Removing(_arr[_lastIndex]._nextIndex);
             if (node._index == _lastIndex) _lastIndex = newIndex;
@@ -813,4 +843,6 @@ namespace Arithmetic
         }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
+    //такие дела
+    #endregion
 }
