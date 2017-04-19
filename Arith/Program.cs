@@ -33,18 +33,21 @@ namespace Arithmetic
         static void Main(string[] args)
         {
             Console.WriteLine("Пример ввода:");
-            var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2,24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
+            var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2.24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
             double dbX = -0.395;
             Console.WriteLine($"{str1}");
-
+            Calc expressionCalc = null;
             try
             {
-                Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
+                expressionCalc = new Calc(str1);
+                Console.WriteLine($"x = {dbX}\n{str1} = {expressionCalc.CalcResult(dbX)}");
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
+            var str2 = expressionCalc?.PrintExpression();
+            Console.WriteLine(new Calc(str2.Replace(',', '.')).CalcResult(dbX));
             Console.ReadLine();
 
             //Console.WriteLine();
@@ -89,16 +92,20 @@ namespace Arithmetic
 
         private int _braketsNumber;
 
-        public double Result;
+        public IOperand OperandResult;
 
-
-        public Calc(string startValue, double xValue)
+        public Calc(string startValue)
         {
             _braketsNumber = 0;
             var node = new UserList<char>(startValue.Where(ch => ch != ' ')).First;
-            Result = StrResult(default(char), ref node, out char value, out int preor).SetIntValue(xValue);
-            if(_braketsNumber != 0) throw new Exception("Не закрыто " + _braketsNumber + " cкобок");
+            OperandResult = StrResult(default(char), ref node, out char value, out int preor);
+            //Result = StrResult(default(char), ref node, out char value, out int preor).SetIntValue(xValue);
+            if (_braketsNumber != 0) throw new Exception("Не закрыто " + _braketsNumber + " cкобок");
         }
+
+        public double CalcResult(double xValue) => OperandResult.SetIntValue(xValue);
+        public string PrintExpression() => OperandResult.Print;
+
 
         private IOperand StrResult(char preOperand, ref IValuesAndLink<char> sValue, out char lastOperand, out int lastOperandPreor)
         {
@@ -340,6 +347,8 @@ namespace Arithmetic
     {
         double SetIntValue(double value);
         string Print { get; }
+        IOperand Uncover { get; }
+
     }
 
     class Const : IOperand
@@ -351,7 +360,7 @@ namespace Arithmetic
             _doubValue = value;
         }
 
-
+        public IOperand Uncover => null;
         public double SetIntValue(double value) => _doubValue;
 
         public string Print => _doubValue.ToString();
@@ -360,6 +369,7 @@ namespace Arithmetic
     class Variable : IOperand
     {
         private double _doubValue;
+        public IOperand Uncover => null;
 
         public double SetIntValue(double value)
         {
@@ -374,6 +384,7 @@ namespace Arithmetic
     {
         private readonly IOperand _value1;
         private double _resultValue;
+        public IOperand Uncover => this; //TODO ??????
 
         protected UnoMethod(IOperand a)
         {
@@ -463,7 +474,7 @@ namespace Arithmetic
         }
 
         public override double Operation(double a, double b) => (a - b);
-        public override string PrintOperation(string a, string b) => a + " - " + b; // TODO a - (b)
+        public override string PrintOperation(string a, string b) => "(" + a + ") - (" + b + ")"; // TODO a - (b)
     }
 
     class Add : Method
@@ -473,7 +484,7 @@ namespace Arithmetic
         }
 
         public override double Operation(double a, double b) => a + b;
-        public override string PrintOperation(string a, string b) => a + " + " + b;
+        public override string PrintOperation(string a, string b) => "(" + a + ") + (" + b + ")";
     }
 
     class Umn : Method
