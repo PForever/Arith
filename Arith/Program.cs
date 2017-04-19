@@ -32,19 +32,20 @@ namespace Arithmetic
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Пример ввода:");
-            var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2,24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
+            //Console.WriteLine("Пример ввода:");
+            var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2.24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
             //double dbX = -0.395;
             //Console.WriteLine($"{str1}");
+            //Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
 
             //try
             //{
-            //    Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
             //}
             //catch (Exception e)
             //{
             //    Console.WriteLine(e.Message);
             //}
+            //Console.ReadLine();
             //Console.WriteLine();
 
             //Test.Test1(new UserList<int>(new int[10]));
@@ -58,7 +59,7 @@ namespace Arithmetic
 
                     var str = Console.ReadLine().Replace(',', '.');
                     Console.Write("Введите x = ");
-                    if(!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) {throw new FormatException("x должен быть числом.");}
+                    if (!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) { throw new FormatException("x должен быть числом."); }
                     Console.WriteLine($"{str} = {(new Calc(str, dbX)).Result}");
 
                 }
