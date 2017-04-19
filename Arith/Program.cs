@@ -13,11 +13,19 @@ namespace Arithmetic
         {
             var rnd = new Random();
             var rangeList = Enumerable.Range(0, 10).ToList();
-            rangeList.ForEach(i => ar.Add(rnd.Next(10)));
-            var p = rangeList.Where(s => ar.Remove(rnd.Next(10))).ToList();
+            rangeList.ForEach(i => ar.Add(i));
+
+            //var p = rangeList.Where(s => ar.Remove(rnd.Next(10))).ToList();
             ar.ToList().ForEach(s => Console.Write($"{s} "));
+            var variable = ar.First;
+            var variable1 = variable.Next;
+            for (var i = 0; i < 3; i++)
+            {
+                variable = variable.Next;
+            }
+            ar.AddBefor(variable1, 20);
             Console.WriteLine();
-            p.ForEach(s => Console.Write($"{s} "));
+            ar.ToList().ForEach(s => Console.Write($"{s} "));
         }
     }
     class Program
@@ -25,33 +33,46 @@ namespace Arithmetic
         static void Main(string[] args)
         {
             Console.WriteLine("Пример ввода:");
-            var str = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2.24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
-            double dbX = -0.395;
-            Console.WriteLine($"{str}");
+            var str1 = "-sin15x log-63.4x *-57 (cos-12x+ 7)^(sin8/cos8x) + 7^-cos(-x^2,24)(log(xsin0.46x))"; //"-sin(-3log(- 3 sin -1.5157 x ^ 3.5x / -x ^ 25.27 log-x)(18x + 3.87)/x^-20)";
+            //double dbX = -0.395;
+            //Console.WriteLine($"{str1}");
 
-            try
-            {
-                Console.WriteLine($"x = {dbX}\n{str} = {(new Calc(str, dbX)).Result}");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+            //try
+            //{
+            //    Console.WriteLine($"x = {dbX}\n{str1} = {(new Calc(str1, dbX)).Result}");
+            //}
+            //catch (Exception e)
+            //{
+            //    Console.WriteLine(e.Message);
+            //}
+            //Console.WriteLine();
 
-            Console.WriteLine("\nВведите выражение:");
-            str = Console.ReadLine();
-            try
+            //Test.Test1(new UserList<int>(new int[10]));
+            do
             {
-                Console.Write("Введите x: ");
-                dbX = Double.Parse(Console.ReadLine());
-                Console.WriteLine($"x = {dbX}\n{str} = {(new Calc(str, dbX)).Result}");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+                Console.Clear();
+                try
+                {
+                    Console.WriteLine($"Пример ввода:\n{str1}");
+                    Console.WriteLine("Введите выражение:");
 
-            Console.ReadLine();
+                    var str = Console.ReadLine().Replace(',', '.');
+                    Console.Write("Введите x = ");
+                    if(!Double.TryParse(Console.ReadLine().Replace('.', ','), out double dbX)) {throw new FormatException("x должен быть числом.");}
+                    Console.WriteLine($"{str} = {(new Calc(str, dbX)).Result}");
+
+                }
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(e.Message);
+                    Console.ResetColor();
+                }
+                finally
+                {
+                    Console.WriteLine("Для выхода нажмите Esc/любую клавишу для продолжения.");
+                }
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
         }
     }
 
@@ -113,19 +134,14 @@ namespace Arithmetic
                     if(b == null && operand == default(char)) break;
                     a = DuoOperand(a, b, operand);
                     operand = nextOperand;
+                    operandPreor = nextOperandPreor;
                 }
                 else
                 {
-                    if (operandPreor == 1)
-                    {
                         a = DuoOperand(a,
                             DuoOperand(b, StrResult(operand, ref sValue, out char tempOperand, out operandPreor),
                                 nextOperand), operand);
                         operand = tempOperand;
-                    }
-                    else
-                    {
-                    }
                 }
             } while (operand != CloseBracket && sValue != null);
             lastOperand = default(char);
@@ -576,7 +592,6 @@ namespace Arithmetic
                     var temp = new ValuesAndLink[value];
                     var index = 0;
                     var lastValue = _arr[_firstIndex];
-                    //IValuesAndLink<T> lastItems = _arr[_firstIndex];
                     while (lastValue._enable)
                     {
                         temp[index] = new ValuesAndLink(index, lastValue.Value, this);
@@ -633,23 +648,36 @@ namespace Arithmetic
 
         public void AddAfter(IValuesAndLink<T> elementNode, T elenet)
         {
+            Count++;
+            var newIndex = _arr[_lastIndex]._nextIndex;
+            var node = (ValuesAndLink) elementNode;
 
-            var tempIndex = _arr[_lastIndex]._nextIndex;
             Removing(_arr[_lastIndex]._nextIndex);
-            _arr[tempIndex].Value = elenet;
-            _arr[tempIndex]._enable = true;
-            _arr[tempIndex].Next = ((ValuesAndLink)elementNode).Next;
-            ((ValuesAndLink) elementNode).Next = _arr[tempIndex];
-            _arr[tempIndex].Previous = (ValuesAndLink)elementNode;
+            if (node._index == _lastIndex) _lastIndex = newIndex;
+
+            Count++;
+            _arr[newIndex].Value = elenet;
+            _arr[newIndex]._enable = true;
+            _arr[newIndex]._nextIndex = node._nextIndex;
+            node._nextIndex = newIndex;
+            _arr[newIndex]._previousIndex = node._index;
         }
         public void AddBefor(IValuesAndLink<T> elementNode, T elenet)
         {
-            var tempIndex = _arr[_lastIndex]._nextIndex;
+            Count++;
+            var newIndex = _arr[_lastIndex]._nextIndex;
+            var node = (ValuesAndLink)elementNode;
+
             Removing(_arr[_lastIndex]._nextIndex);
-            _arr[tempIndex].Value = elenet;
-            _arr[tempIndex].Next = (ValuesAndLink)elementNode;
-            _arr[tempIndex].Previous = (ValuesAndLink)elementNode.Previous;
-            ((ValuesAndLink)elementNode).Previous = _arr[tempIndex];
+            if (node._index == _firstIndex) _firstIndex = newIndex;
+
+            Count++;
+            node.Previous._nextIndex = newIndex;
+            _arr[newIndex].Value = elenet;
+            _arr[newIndex]._enable = true;
+            _arr[newIndex]._nextIndex = node._index;
+            node._previousIndex = newIndex;
+            _arr[newIndex]._previousIndex = node._previousIndex;
 
         }
         public void AddFirst(T elenet)
@@ -696,7 +724,10 @@ namespace Arithmetic
         {
             var variable = GetEnumerator();
             while (variable.MoveNext())
+            {
                 array[arrayIndex++] = variable.Current;
+            }
+
         }
 
         public IValuesAndLink<T> Find(T element)
@@ -781,6 +812,4 @@ namespace Arithmetic
         }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
-
-
 }
