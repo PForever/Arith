@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Arithmetic;
 
 namespace Arithmetic
 {
@@ -343,11 +344,16 @@ namespace Arithmetic
         bool NumbersPredicate(char ch) => (ch >= '0') && (ch <= '9') || (ch == '.');
     }
 
+    enum NameOfOferand
+    {
+        Const, Variable, Min, Add, Umn, Del, Up, Func
+    }
     interface IOperand
     {
+        NameOfOferand Name {get;}
         double SetIntValue(double value);
         string Print { get; }
-        IOperand Uncover { get; }
+        IOperand Uncover(NameOfOferand name, IOperand deel);
 
     }
 
@@ -357,13 +363,15 @@ namespace Arithmetic
 
         public Const(double value)
         {
+            Name = NameOfOferand.Const;
             _doubValue = value;
         }
 
-        public IOperand Uncover => null;
+        public IOperand Uncover => null; //TODO 
         public double SetIntValue(double value) => _doubValue;
 
         public string Print => _doubValue.ToString();
+        public NameOfOferand Name { get; }
     }
 
     class Variable : IOperand
@@ -371,6 +379,10 @@ namespace Arithmetic
         private double _doubValue;
         public IOperand Uncover => null;
 
+        public Variable()
+        {
+            Name = NameOfOferand.Variable;
+        }
         public double SetIntValue(double value)
         {
             _doubValue = value;
@@ -378,6 +390,7 @@ namespace Arithmetic
         }
 
         public string Print => "x";
+        public NameOfOferand Name { get; }
     }
 
     abstract class UnoMethod : IOperand
@@ -386,9 +399,10 @@ namespace Arithmetic
         private double _resultValue;
         public IOperand Uncover => this; //TODO ??????
 
-        protected UnoMethod(IOperand a)
+        protected UnoMethod(IOperand a, NameOfOferand name)
         {
             _value1 = a;
+            Name = name;
         }
 
         protected abstract double Operation(double a);
@@ -401,11 +415,12 @@ namespace Arithmetic
 
 
         public string Print => PrintOperation(_value1.Print);
+        public NameOfOferand Name { get; }
     }
 
     class Sin : UnoMethod
     {
-        public Sin(IOperand a) : base(a)
+        public Sin(IOperand a) : base(a, NameOfOferand.Func)
         {
         }
 
@@ -415,7 +430,7 @@ namespace Arithmetic
 
     class Cos : UnoMethod
     {
-        public Cos(IOperand a) : base(a)
+        public Cos(IOperand a) : base(a, NameOfOferand.Func)
         {
         }
 
@@ -425,7 +440,7 @@ namespace Arithmetic
 
     class Ln : UnoMethod
     {
-        public Ln(IOperand a) : base(a)
+        public Ln(IOperand a) : base(a, NameOfOferand.Func)
         {
         }
 
@@ -435,7 +450,7 @@ namespace Arithmetic
 
     class UnoMin : UnoMethod
     {
-        public UnoMin(IOperand a) : base(a)
+        public UnoMin(IOperand a) : base(a, NameOfOferand.Func)
         {
         }
 
@@ -445,61 +460,127 @@ namespace Arithmetic
 
     abstract class Method : IOperand
     {
-        private readonly IOperand _value1;
-        private readonly IOperand _value2;
+        protected readonly IOperand _value1;
+        protected readonly IOperand _value2;
         private double _resultValue;
 
-        protected Method(IOperand a, IOperand b)
+        protected Method(IOperand a, IOperand b, NameOfOferand name)
         {
+            Name = name;
             _value1 = a;
             _value2 = b;
         }
 
         public abstract double Operation(double a, double b);
         public abstract string PrintOperation(string a, string b);
-
         public double SetIntValue(double value)
         {
             _resultValue = Operation(_value1.SetIntValue(value), _value2.SetIntValue(value));
             return _resultValue;
         }
 
+
+
         public string Print => PrintOperation(_value1.Print, _value2.Print);
+        public NameOfOferand Name { get; }
+        public abstract IOperand Uncover(NameOfOferand name, IOperand deel);
     }
 
     class Min : Method
     {
-        public Min(IOperand a, IOperand b) : base(a, b)
+        public Min(IOperand a, IOperand b) : base(a, b, NameOfOferand.Min)
         {
         }
 
         public override double Operation(double a, double b) => (a - b);
-        public override string PrintOperation(string a, string b) => "(" + a + ") - (" + b + ")"; // TODO a - (b)
+        public override string PrintOperation(string a, string b) => "(" + a + ") - (" + b + ")";
+
+        public override IOperand Uncover(NameOfOferand name, IOperand deel)
+        {
+            //var result = new Add(_value1.Uncover(NameOfOferand.Add), _value2.Uncover(NameOfOferand.Min);
+            var temp1 = _value1.Uncover(NameOfOferand.Add, null);
+            var temp2 = _value2.Uncover(NameOfOferand.Min, null); //TODO whithout temp (-)
+            switch (name)
+            {
+                case NameOfOferand.Min:
+                    return new Add(new UnoMin(temp1), new UnoMin(temp2));
+                case NameOfOferand.Del:
+                    //return new Add(new Del(temp1, deel), new Del(temp2, deel));
+                    return new Add(temp1.Uncover(NameOfOferand.Del, deel), temp2.Uncover(NameOfOferand.Del, deel));
+                case NameOfOferand.Umn:
+                    return new Add(new Add(temp1.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const? deel : deel.Uncover(NameOfOferand.Umn, temp1)), new Add(temp2.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const ? deel : deel.Uncover(NameOfOferand.Umn, temp2)));
+                case NameOfOferand.Up:
+                    return new Up(temp1, temp2);//TODO binom if const
+                default:
+                    return new Add(temp1, temp2);
+            }
+        }
+    }
     }
 
     class Add : Method
     {
-        public Add(IOperand a, IOperand b) : base(a, b)
+        public Add(IOperand a, IOperand b) : base(a, b, NameOfOferand.Add)
         {
         }
 
         public override double Operation(double a, double b) => a + b;
         public override string PrintOperation(string a, string b) => "(" + a + ") + (" + b + ")";
+                public override IOperand Uncover(NameOfOferand name, IOperand deel)
+        {
+            //var result = new Add(_value1.Uncover(NameOfOferand.Add), _value2.Uncover(NameOfOferand.Min);
+            var temp1 = _value1.Uncover(NameOfOferand.Add, null);
+            var temp2 = _value2.Uncover(NameOfOferand.Add, null); //TODO whithout temp (-)
+            switch (name)
+            {
+                case NameOfOferand.Min:
+                    return new Add(new UnoMin(temp1), new UnoMin(temp2));
+                case NameOfOferand.Del:
+                    //return new Add(new Del(temp1, deel), new Del(temp2, deel));
+                    return new Add(temp1.Uncover(NameOfOferand.Del, deel), temp2.Uncover(NameOfOferand.Del, deel));
+                case NameOfOferand.Umn:
+                    return new Add(new Add(temp1.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const? deel : deel.Uncover(NameOfOferand.Umn, temp1)), new Add(temp2.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const ? deel : deel.Uncover(NameOfOferand.Umn, temp2)));
+                case NameOfOferand.Up:
+                    return new Up(temp1, temp2);//TODO binom if const
+                default:
+                    return new Add(temp1, temp2);
+            }
+        }
     }
 
     class Umn : Method
     {
-        public Umn(IOperand a, IOperand b) : base(a, b)
+        public Umn(IOperand a, IOperand b) : base(a, b, NameOfOferand.Umn)
         {
         }
 
         public override double Operation(double a, double b) => a * b;
         public override string PrintOperation(string a, string b) => "(" + a + ") * (" + b + ")";
+        public override IOperand Uncover(NameOfOferand name, IOperand deel)
+        {
+            //var result = new Add(_value1.Uncover(NameOfOferand.Add), _value2.Uncover(NameOfOferand.Min);
+            var temp1 = _value1.Uncover(NameOfOferand.Add, null);
+            var temp2 = _value2.Uncover(NameOfOferand.Min, null); //TODO whithout temp (-)
+            switch (name)
+            {
+                case NameOfOferand.Min:
+                    return new Add(new UnoMin(temp1), new UnoMin(temp2));
+                case NameOfOferand.Del:
+                    //return new Add(new Del(temp1, deel), new Del(temp2, deel));
+                    return new Add(temp1.Uncover(NameOfOferand.Del, deel), temp2.Uncover(NameOfOferand.Del, deel));
+                case NameOfOferand.Umn:
+                    return new Add(new Add(temp1.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const ? deel : deel.Uncover(NameOfOferand.Umn, temp1)), new Add(temp2.Uncover(NameOfOferand.Umn, deel), deel.Name == NameOfOferand.Const ? deel : deel.Uncover(NameOfOferand.Umn, temp2)));
+                case NameOfOferand.Up:
+                    return new Up(temp1, temp2);//TODO binom if const
+                default:
+                    return new (temp1, temp2);
+            }
+        }
     }
 
     class Del : Method
     {
-        public Del(IOperand a, IOperand b) : base(a, b)
+        public Del(IOperand a, IOperand b) : base(a, b, NameOfOferand.Del)
         {
         }
 
@@ -513,7 +594,7 @@ namespace Arithmetic
 
     class Up : Method
     {
-        public Up(IOperand a, IOperand b) : base(a, b)
+        public Up(IOperand a, IOperand b) : base(a, b, NameOfOferand.Up)
         {
         }
 
